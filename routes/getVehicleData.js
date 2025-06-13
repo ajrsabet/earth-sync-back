@@ -1,4 +1,4 @@
-// fueleconomy.js
+// getVehicleData.js
 // This file contains the routes for fetching vehicle data from the fueleconomy.gov API.
 
 const express = require('express');
@@ -67,7 +67,7 @@ router.get('/vehicle/:id', async (req, res) => {
     const response = await axios.get(`${API_URL}/${id}`, {
       headers: { Accept: 'application/xml' }
     });
-    res.send(response.data); // You can parse XML to JSON here if you want
+    res.send(response.data); 
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch vehicle data' });
   }

@@ -7,43 +7,149 @@ const router = express.Router();
 const db = admin.firestore();
 const USERS = db.collection('users');
 
+// // Register
+// router.post('/register', async (req, res) => {
+//   const { email, password, userName, securityQuestions, securityAnswers } = req.body;
+//   try {
+//     // user tried to register 
+//     console.log('Registering user:', email);
+
+//     const userSnap = await USERS.where('email', '==', email).get();
+//     if (!userSnap.empty) return res.status(400).json({ error: 'User already exists' });
+//     const hash = await bcrypt.hash(password, 10);
+//     await USERS.add({
+//       email,
+//       password: hash,
+//       userName: userName || '',
+//       securityQuestions: securityQuestions || [],
+//       securityAnswers: securityAnswers || []
+//     });
+//     res.json({ message: 'User registered' });
+//   } catch (err) {
+//     console.error('Registration error:', err);
+//     res.status(500).json({ error: 'Registration failed' });
+//   }
+// });
+
+
+
+// // Login
+// router.post('/login', async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     // user tried to login 
+//     console.log('Logging in user:', email);
+
+//     const userSnap = await USERS.where('email', '==', email).get();
+//     if (userSnap.empty) return res.status(400).json({ error: 'Invalid credentials' });
+//     const userDoc = userSnap.docs[0];
+//     const user = userDoc.data();
+//     const match = await bcrypt.compare(password, user.password);
+//     if (!match) return res.status(400).json({ error: 'Invalid credentials' });
+//     const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+//     res.json({ token, userName: user.userName || '' });
+//   } catch (err) {
+//     console.error('Login error:', err);
+//     res.status(500).json({ error: 'Login failed' });
+//   }
+// });
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+// Configure your email transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: false, // true for 465, false for 587
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
 // Register
 router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, userName } = req.body;
   try {
-    // user tried to register 
-    console.log('Registering user:', email);
-
     const userSnap = await USERS.where('email', '==', email).get();
     if (!userSnap.empty) return res.status(400).json({ error: 'User already exists' });
+
     const hash = await bcrypt.hash(password, 10);
-    await USERS.add({ email, password: hash });
-    res.json({ message: 'User registered' });
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const userRef = await USERS.add({
+      email,
+      password: hash,
+      userName: userName || '',
+      verified: false,
+      verificationToken
+    });
+
+    // Send verification email
+    const verifyUrl = `http://localhost:5000/auth/verify-email?token=${verificationToken}`;
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your email',
+      html: `<p>Click the link to verify your email: <a href="${verifyUrl}">${verifyUrl}</a></p>`
+    });
+
+    res.json({ message: 'User registered. Please check your email to verify your account.' });
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-// Login
+// Email verification endpoint
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  try {
+    const userSnap = await USERS.where('verificationToken', '==', token).get();
+    if (userSnap.empty) return res.status(400).send('Invalid or expired verification link.');
+    const userDoc = userSnap.docs[0];
+    await USERS.doc(userDoc.id).update({ verified: true, verificationToken: admin.firestore.FieldValue.delete() });
+    res.send('Email verified! You can now log in.');
+  } catch (err) {
+    res.status(500).send('Verification failed.');
+  }
+});
+
+// Update login to check verified
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    // user tried to login 
-    console.log('Registering user:', email);
-    
     const userSnap = await USERS.where('email', '==', email).get();
     if (userSnap.empty) return res.status(400).json({ error: 'Invalid credentials' });
-    const user = userSnap.docs[0].data();
+    const userDoc = userSnap.docs[0];
+    const user = userDoc.data();
+    if (!user.verified) return res.status(403).json({ error: 'Please verify your email before logging in.' });
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ error: 'Invalid credentials' });
     const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token });
+    res.json({ token, userName: user.userName || '', userId: userDoc.id });
   } catch (err) {
-    console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
+
+// Reset password
+router.post('/reset-password', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const userSnap = await USERS.where('email', '==', email).get();
+    if (userSnap.empty) return res.status(404).json({ error: 'User not found' });
+    const userDoc = userSnap.docs[0];
+    const hash = await bcrypt.hash(password, 10);
+    await USERS.doc(userDoc.id).update({ password: hash });
+    res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
 
 module.exports = router;
