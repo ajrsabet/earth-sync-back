@@ -7,60 +7,15 @@ const router = express.Router();
 const db = admin.firestore();
 const USERS = db.collection('users');
 
-// // Register
-// router.post('/register', async (req, res) => {
-//   const { email, password, userName, securityQuestions, securityAnswers } = req.body;
-//   try {
-//     // user tried to register 
-//     console.log('Registering user:', email);
-
-//     const userSnap = await USERS.where('email', '==', email).get();
-//     if (!userSnap.empty) return res.status(400).json({ error: 'User already exists' });
-//     const hash = await bcrypt.hash(password, 10);
-//     await USERS.add({
-//       email,
-//       password: hash,
-//       userName: userName || '',
-//       securityQuestions: securityQuestions || [],
-//       securityAnswers: securityAnswers || []
-//     });
-//     res.json({ message: 'User registered' });
-//   } catch (err) {
-//     console.error('Registration error:', err);
-//     res.status(500).json({ error: 'Registration failed' });
-//   }
-// });
-
-
-
-// // Login
-// router.post('/login', async (req, res) => {
-//   const { email, password } = req.body;
-//   try {
-//     // user tried to login 
-//     console.log('Logging in user:', email);
-
-//     const userSnap = await USERS.where('email', '==', email).get();
-//     if (userSnap.empty) return res.status(400).json({ error: 'Invalid credentials' });
-//     const userDoc = userSnap.docs[0];
-//     const user = userDoc.data();
-//     const match = await bcrypt.compare(password, user.password);
-//     if (!match) return res.status(400).json({ error: 'Invalid credentials' });
-//     const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1d' });
-//     res.json({ token, userName: user.userName || '' });
-//   } catch (err) {
-//     console.error('Login error:', err);
-//     res.status(500).json({ error: 'Login failed' });
-//   }
-// });
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 
 // Configure your email transporter
+const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
-  secure: false, // true for 465, false for 587
+  // Change secure for production, true for 465, false for 587 
+  secure: false, 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS

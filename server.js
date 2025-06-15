@@ -16,8 +16,11 @@ admin.initializeApp({
 const db = admin.firestore();
 const app = express();
 app.use(express.json());
-app.use(cors());
-const PORT = process.env.PORT || 5000;
+// app.use(cors()); // Enable CORS for all origins for development
+app.use(cors({
+  origin: ['https://earth-sync-462122.web.app', 'https://earth-sync-462122.firebaseapp.com'],
+}));
+const PORT = process.env.PORT || 8080;
 
 // Log every incoming request
 app.use((req, res, next) => {
