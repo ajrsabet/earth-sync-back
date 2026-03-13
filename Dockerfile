@@ -1,8 +1,9 @@
 # Use Node.js LTS version
-FROM node:18
+FROM node:22-slim
 
 # Set the working directory
 WORKDIR /app
+
 
 # Copy package.json and install dependencies
 COPY package*.json ./

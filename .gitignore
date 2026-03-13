@@ -13,6 +13,8 @@ yarn-error.log*
 .env.*
 serviceAccountKey.json
 
+# Ignore Dockerfile and docker-compose files
+.dockerignore
 
 # OS generated files
 .DS_Store

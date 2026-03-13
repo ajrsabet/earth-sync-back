@@ -1,16 +1,26 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const admin = require('firebase-admin');
-const router = express.Router();
-
-const db = admin.firestore();
-const USERS = db.collection('users');
-
-const crypto = require('crypto');
-
-// Configure your email transporter
+const bcrypt = require('bcryptjs'); // Use bcryptjs for hashing passwords
+const jwt = require('jsonwebtoken'); // Use jsonwebtoken for token generation
+const admin = require('firebase-admin'); // Initialize Firebase Admin SDK
+const router = express.Router(); 
+const crypto = require('crypto'); // Use crypto for generating verification tokens
 const nodemailer = require('nodemailer');
+
+const db = admin.firestore(); 
+const USERS = db.collection('users'); 
+
+// Determine the base URL based on the environment (development or production)
+let baseUrl;
+
+if (process.env.NODE_ENV === 'production') {
+  // Production: Use the Cloud Run service URL
+  baseUrl = process.env.BASE_URL || 'https://earth-sync-back-somehash-uc.a.run.app'; // Replace with your actual Cloud Run URL
+} else {
+  // Development: Use localhost
+  baseUrl = 'http://localhost:8080';
+}
+
+// Configure email transporter
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
@@ -24,6 +34,7 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: false
   }
 });
+
 
 // Register
 router.post('/register', async (req, res) => {
@@ -43,7 +54,8 @@ router.post('/register', async (req, res) => {
     });
 
     // Send verification email
-    const verifyUrl = `http://localhost:5000/auth/verify-email?token=${verificationToken}`;
+    
+    const verifyUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
